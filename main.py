@@ -6,15 +6,29 @@ import pygetwindow as gw
 import mss
 import mss.tools
 
-# Solicita o tempo de espera ao usuário
+# Solicita o tempo de espera entre ciclos ao usuário
 horas = int(input("Digite o número de horas para esperar após o clique: "))
 minutos = int(input("Digite o número de minutos para esperar após o clique: "))
-tempo_de_espera = (horas * 3600) + (minutos * 60)  # Converte para segundos
+tempo_de_espera = (horas * 3600) + (minutos * 60)
+
+# Pergunta ao usuário se o timer do Claim já está pronto
+resposta = input("O botão Claim já está disponível? (s/n): ").strip().lower()
+
+if resposta == "n":
+    horas_faltando = int(input("Quantas horas faltam para o primeiro Claim? "))
+    minutos_faltando = int(input("Quantos minutos faltam para o primeiro Claim? "))
+    tempo_espera_inicial = (horas_faltando * 3600) + (minutos_faltando * 60)
+
+    print(f"Aguardando {horas_faltando} horas e {minutos_faltando} minutos antes de iniciar o processo...")
+    time.sleep(tempo_espera_inicial)
+
+print("Iniciando o bot...")
 
 # Carrega as imagens dos botões
 button_claim_template = cv2.imread('assets/claim.png', cv2.IMREAD_UNCHANGED)
 button_ok_template = cv2.imread('assets/ok.png', cv2.IMREAD_UNCHANGED)
 button_start_template = cv2.imread('assets/start.png', cv2.IMREAD_UNCHANGED)
+button_play_template = cv2.imread('assets/play.png', cv2.IMREAD_UNCHANGED)
 
 # Coordenadas RELATIVAS das abas dentro da janela do jogo
 abas_relativas = [
@@ -33,17 +47,7 @@ def capturar_area_jogo():
         x_janela, y_janela, largura, altura = janela.left, janela.top, janela.width, janela.height
         
         with mss.mss() as sct:
-            monitores = sct.monitors
-
-            if len(monitores) > 1:
-                print("Capturando no segundo monitor...")
-                monitor = monitores[1]
-            else:
-                print("Segundo monitor não detectado! Usando o primeiro monitor...")
-                monitor = monitores[0]
-
             regiao = {"top": y_janela, "left": x_janela, "width": largura, "height": altura}
-            
             screenshot = sct.grab(regiao)
             screenshot_np = np.array(screenshot)
 
@@ -81,30 +85,56 @@ def clicar_no_botao(template, descricao):
     
     return False
 
+def verificar_todas_abas(x_janela, y_janela):
+    """Verifica todas as abas para ver se há um botão Claim disponível."""
+    for i, (x_rel, y_rel) in enumerate(abas_relativas):
+        x_aba = x_janela + x_rel
+        y_aba = y_janela + y_rel
+
+        pyautogui.moveTo(x_aba, y_aba, duration=0.2)
+        pyautogui.click()
+        time.sleep(2)
+
+        if clicar_no_botao(button_claim_template, f"Botão CLAIM encontrado na aba {i+1}"):
+            return True  # Encontrou um botão Claim em alguma aba
+
+    return False  # Não encontrou nenhum botão Claim em nenhuma aba
+
 def processar_aba(x_janela, y_janela):
     """Executa a sequência de cliques para uma aba."""
     print("Procurando botão CLAIM...")
-    
-    while not clicar_no_botao(button_claim_template, "Botão CLAIM"):
-        time.sleep(10)
-    
-    time.sleep(0.5)  # Pequena espera antes do OK
+
+    if not clicar_no_botao(button_claim_template, "Botão CLAIM"):
+        print("Botão CLAIM não encontrado. Verificando se é necessário clicar no botão PLAY...")
+        
+        # Se o botão Claim não for encontrado, tenta clicar no botão Play
+        if clicar_no_botao(button_play_template, "Botão PLAY"):
+            print("Botão PLAY clicado. Esperando 5 segundos para carregar...")
+            time.sleep(5)  # Tempo para carregar o jogo
+            
+            # Depois de clicar em Play, verifica todas as abas novamente
+            if verificar_todas_abas(x_janela, y_janela):
+                return processar_aba(x_janela, y_janela)  # Continua normalmente se encontrar Claim
+        
+        print("Nenhum botão Claim encontrado. Temporizador ativado. Aguardando o próximo ciclo...")
+        return  # Nenhum Claim encontrado, o loop continuará depois
+
+    time.sleep(0.5)
 
     print("Procurando botão OK...")
     
     while not clicar_no_botao(button_ok_template, "Botão OK"):
         time.sleep(1)
     
-    time.sleep(6)  # Aguarda 6 segundos antes do START
+    time.sleep(6)
 
     print("Procurando botão START...")
     
     while not clicar_no_botao(button_start_template, "Botão START"):
-        time.sleep(1)
+        time.sleep(4)
 
 # Loop principal
 while True:
-    # Obtém a posição atual da janela
     try:
         janela = gw.getWindowsWithTitle("Miniapp: Ton Warrior bot")[0]
         x_janela, y_janela = janela.left, janela.top
@@ -114,14 +144,13 @@ while True:
         continue
 
     for i, (x_rel, y_rel) in enumerate(abas_relativas):
-        # Converte coordenadas relativas para absolutas
         x_aba = x_janela + x_rel
         y_aba = y_janela + y_rel
 
         print(f"Alternando para a aba {i + 1}...")
         pyautogui.moveTo(x_aba, y_aba, duration=0.2)
         pyautogui.click()
-        time.sleep(2)  # Aguarda um pouco antes de começar os cliques na aba
+        time.sleep(2)
 
         processar_aba(x_janela, y_janela)
 
