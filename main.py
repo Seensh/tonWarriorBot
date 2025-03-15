@@ -33,7 +33,9 @@ button_claim_template = cv2.imread('assets/claim.png', cv2.IMREAD_UNCHANGED)
 button_ok_template = cv2.imread('assets/ok.png', cv2.IMREAD_UNCHANGED)
 button_start_template = cv2.imread('assets/start.png', cv2.IMREAD_UNCHANGED)
 button_play_template = cv2.imread('assets/play.png', cv2.IMREAD_UNCHANGED)
-power_zero_template = cv2.imread('assets/0percent.png', cv2.IMREAD_UNCHANGED)  # Verificação de energia
+power_zero_template = cv2.imread('assets/0percent.png', cv2.IMREAD_UNCHANGED)
+button_backpack_template = cv2.imread('assets/backpack.png', cv2.IMREAD_UNCHANGED)
+button_inicio_play_template = cv2.imread('assets/inicioPlay.png', cv2.IMREAD_UNCHANGED)
 
 # Coordenadas RELATIVAS das abas dentro da janela do jogo
 abas_relativas = [
@@ -43,6 +45,17 @@ abas_relativas = [
     (243, 541),  # Aba 4
     (301, 543),  # Aba 5
     (361, 540)   # Aba 6
+]
+
+# Coordenadas das abas dentro da Backpack
+backpack_abas_relativas = [
+    (88, 260),   # Aba 1
+    (125, 260),  # Aba 2
+    (156, 258),  # Aba 3
+    (202, 257),  # Aba 4
+    (241, 258),  # Aba 5
+    (281, 258),  # Aba 6
+    (320, 259)   # Aba 7
 ]
 
 def capturar_area_jogo():
@@ -80,7 +93,8 @@ def verificar_energia():
     """Verifica se há energia disponível antes de tentar clicar no Claim."""
     locais = encontrar_botao(power_zero_template, limiar=0.9)
     if locais:
-        print("⚡ [SEM ENERGIA] 0% detectado! Pulando esta aba...")
+        print("⚡ [SEM ENERGIA] 0% detectado! Abrindo Backpack para limpar itens...")
+        abrir_backpack()
         return False
     return True
 
@@ -96,6 +110,26 @@ def clicar_no_botao(template, descricao):
         return True
     
     return False
+
+def abrir_backpack():
+    """Clica no botão Backpack e remove a seleção das 7 abas."""
+    if clicar_no_botao(button_backpack_template, "Botão BACKPACK"):
+        print("🎒 Backpack aberto! Limpando abas...")
+        time.sleep(2)
+
+        for i, (x_rel, y_rel) in enumerate(backpack_abas_relativas):
+            x_aba = x_janela + x_rel
+            y_aba = y_janela + y_rel
+            
+            pyautogui.moveTo(x_aba, y_aba, duration=0.5)
+            pyautogui.click()
+            print(f"✔ Aba {i+1} do Backpack desmarcada.")
+            time.sleep(2)
+        
+        print("🔄 Voltando ao jogo...")
+        if clicar_no_botao(button_inicio_play_template, "Botão INICIO PLAY"):
+            print("🎮 Jogo retomado! Continuando a verificação das abas...")
+            time.sleep(5)  # Aguarda um tempo para garantir o carregamento do jogo
 
 def verificar_todas_abas(x_janela, y_janela):
     """Verifica todas as abas para ver se há um botão Claim disponível e inicia o ciclo se encontrar."""
