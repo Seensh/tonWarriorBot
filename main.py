@@ -131,6 +131,16 @@ def abrir_backpack():
             print("🎮 Jogo retomado! Continuando a verificação das abas...")
             time.sleep(5)  # Aguarda um tempo para garantir o carregamento do jogo
 
+def verificar_tempo_proximo():
+    """Verifica se a verificação de 2 horas está próxima da execução normal do bot."""
+    tempo_restante = (ultimo_teste + tempo_verificacao) - time.time()
+    
+    if tempo_restante < 600:  # Menos de 10 minutos para o ciclo normal
+        print("⏳ Verificação extra está muito próxima do ciclo normal. Pulando esta verificação...")
+        return False
+    return True
+
+
 def verificar_todas_abas(x_janela, y_janela):
     """Verifica todas as abas para ver se há um botão Claim disponível e inicia o ciclo se encontrar."""
     for i, (x_rel, y_rel) in enumerate(abas_relativas):
@@ -203,9 +213,10 @@ while True:
     print(f"Aguardando {horas} horas e {minutos} minutos antes de repetir o processo...")
 
     while time.time() - ultimo_teste < tempo_verificacao:
-        time.sleep(300)  
+        time.sleep(300)
 
         if time.time() - ultimo_teste >= tempo_verificacao:
-            print("🔄 [VERIFICAÇÃO] Checando todas as abas para ver se há um botão CLAIM disponível...")
-            if verificar_todas_abas(x_janela, y_janela):
-                ultimo_teste = time.time()
+            if verificar_tempo_proximo():  # Impede execução se estiver perto do ciclo normal
+                print("🔄 [VERIFICAÇÃO] Checando todas as abas para ver se há um botão CLAIM disponível...")
+                if verificar_todas_abas(x_janela, y_janela):
+                    ultimo_teste = time.time()
