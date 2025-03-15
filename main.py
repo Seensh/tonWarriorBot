@@ -11,6 +11,9 @@ horas = int(input("Digite o número de horas para esperar após o clique: "))
 minutos = int(input("Digite o número de minutos para esperar após o clique: "))
 tempo_de_espera = (horas * 3600) + (minutos * 60)
 
+# Tempo para verificar o botão "Claim" a cada 2 horas
+tempo_verificacao = 2 * 3600  # 2 horas em segundos
+ultimo_teste = time.time()
 
 # Pergunta ao usuário se o timer do Claim já está pronto
 resposta = input("O botão Claim já está disponível? (s/n): ").strip().lower()
@@ -75,7 +78,7 @@ def encontrar_botao(template, limiar=0.8):
 
 def verificar_energia():
     """Verifica se há energia disponível antes de tentar clicar no Claim."""
-    locais = encontrar_botao(power_zero_template, limiar=0.9)  # Ajustado para evitar falsos positivos
+    locais = encontrar_botao(power_zero_template, limiar=0.9)
     if locais:
         print("⚡ [SEM ENERGIA] 0% detectado! Pulando esta aba...")
         return False
@@ -94,27 +97,39 @@ def clicar_no_botao(template, descricao):
     
     return False
 
+def verificar_todas_abas(x_janela, y_janela):
+    """Verifica todas as abas para ver se há um botão Claim disponível e inicia o ciclo se encontrar."""
+    for i, (x_rel, y_rel) in enumerate(abas_relativas):
+        x_aba = x_janela + x_rel
+        y_aba = y_janela + y_rel
+
+        pyautogui.moveTo(x_aba, y_aba, duration=0.5)
+        pyautogui.click()
+        time.sleep(5)
+
+        if clicar_no_botao(button_claim_template, f"Botão CLAIM encontrado na aba {i+1}"):
+            processar_aba(x_janela, y_janela)
+            return True  
+
+    return False  
+
 def processar_aba(x_janela, y_janela):
     """Executa a sequência de cliques para uma aba."""
     print("Procurando botão CLAIM...")
 
     if not verificar_energia():
-        return  # Se não houver energia, não tenta clicar no Claim
+        return  
 
-    # Tenta encontrar o botão Claim
     while not clicar_no_botao(button_claim_template, "Botão CLAIM"):
         print("Botão CLAIM não encontrado. Verificando se é necessário clicar no botão PLAY...")
         
-        # Se o botão "Claim" não for encontrado, tenta clicar no botão "Play"
         if clicar_no_botao(button_play_template, "Botão PLAY"):
             print("Botão PLAY clicado. Esperando 10 segundos para carregar...")
-            time.sleep(10)  # Espera o jogo carregar
-            
-            # Depois de clicar em Play, tenta novamente encontrar o botão Claim
-            continue
-        
-        print("Nenhum botão Claim encontrado e botão Play não apareceu. Pulando esta aba.")
-        return  # Se não encontrar Play nem Claim, sai dessa aba
+            time.sleep(10)
+            continue  
+
+        print("Nenhum botão Claim encontrado. Pulando esta aba.")
+        return
 
     time.sleep(1)
 
@@ -147,9 +162,16 @@ while True:
         print(f"Alternando para a aba {i + 1}...")
         pyautogui.moveTo(x_aba, y_aba, duration=0.5)
         pyautogui.click()
-        time.sleep(6)
+        time.sleep(8)
 
         processar_aba(x_janela, y_janela)
 
     print(f"Aguardando {horas} horas e {minutos} minutos antes de repetir o processo...")
-    time.sleep(tempo_de_espera)
+
+    while time.time() - ultimo_teste < tempo_verificacao:
+        time.sleep(300)  
+
+        if time.time() - ultimo_teste >= tempo_verificacao:
+            print("🔄 [VERIFICAÇÃO] Checando todas as abas para ver se há um botão CLAIM disponível...")
+            if verificar_todas_abas(x_janela, y_janela):
+                ultimo_teste = time.time()
