@@ -5,3 +5,4 @@ build/
 *.pyc
 __pycache__/
 release/
+error_log.txt

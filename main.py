@@ -6,6 +6,19 @@ import numpy as np
 import pygetwindow as gw
 import mss
 import mss.tools
+import sys
+
+# Redireciona a saída de erro para um arquivo log.txt
+sys.stderr = open("error_log.txt", "w")
+
+# Captura erros inesperados e salva no arquivo
+def excecao_tratada(exctype, value, traceback):
+    with open("error_log.txt", "a") as f:
+        f.write(f"\n[ERRO] {exctype.__name__}: {value}\n")
+    print(f"Erro detectado: {value}. Veja o arquivo error_log.txt para mais detalhes.")
+
+sys.excepthook = excecao_tratada
+
 
 # Tela de apresentação
 def mostrar_tela_apresentacao():
@@ -48,6 +61,13 @@ if resposta == "n":
     time.sleep(tempo_espera_inicial)
 
 print("Iniciando o bot...")
+
+# Função para encontrar o caminho correto dos arquivos dentro do executável
+def resource_path(relative_path):
+    """ Retorna o caminho absoluto do recurso, lidando com o PyInstaller. """
+    if hasattr(sys, '_MEIPASS'):  # Se rodando como executável
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 # Carrega as imagens dos botões
 button_claim_template = cv2.imread('assets/claim.png', cv2.IMREAD_UNCHANGED)
