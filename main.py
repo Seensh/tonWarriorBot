@@ -47,7 +47,7 @@ tempo_de_espera = (horas * 3600) + (minutos * 60)
 
 # Tempo para verificar o botão "Claim" a cada 2 horas
 tempo_verificacao = 2 * 3600  # 2 horas em segundos
-ultimo_teste = time.time()
+hora_atual = time.time()
 
 # Pergunta ao usuário se o timer do Claim já está pronto
 resposta = input("O botão Claim já está disponível? (s/n): ").strip().lower()
@@ -134,7 +134,7 @@ def verificar_energia():
     """Verifica se há energia disponível antes de tentar clicar no Claim."""
     locais = encontrar_botao(power_zero_template, limiar=0.9)
     if locais:
-        print("⚡ [SEM ENERGIA] 0% detectado! Abrindo Backpack para limpar itens...")
+        print("⚡ [SEM ENERGIA] 0 detectado! Abrindo Backpack para limpar seleção de itens...")
         abrir_backpack()
         return False
     return True
@@ -165,7 +165,7 @@ def abrir_backpack():
             pyautogui.moveTo(x_aba, y_aba, duration=0.5)
             pyautogui.click()
             print(f"✔ Aba {i+1} do Backpack desmarcada.")
-            time.sleep(2)
+            time.sleep(0.2)
         
         print("🔄 Voltando ao jogo...")
         if clicar_no_botao(button_inicio_play_template, "Botão INICIO PLAY"):
@@ -174,7 +174,7 @@ def abrir_backpack():
 
 def verificar_tempo_proximo():
     """Verifica se a verificação de 2 horas está próxima da execução normal do bot."""
-    tempo_restante = (ultimo_teste + tempo_verificacao) - time.time()
+    tempo_restante = (hora_atual + tempo_verificacao) - time.time()
     
     if tempo_restante < 600:  # Menos de 10 minutos para o ciclo normal
         print("⏳ Verificação extra está muito próxima do ciclo normal. Pulando esta verificação...")
@@ -184,19 +184,27 @@ def verificar_tempo_proximo():
 
 def verificar_todas_abas(x_janela, y_janela):
     """Verifica todas as abas para ver se há um botão Claim disponível e inicia o ciclo se encontrar."""
+    encontrou_claim = False  # Flag para indicar se encontrou um botão Claim
+
     for i, (x_rel, y_rel) in enumerate(abas_relativas):
         x_aba = x_janela + x_rel
         y_aba = y_janela + y_rel
 
+        print(f"🔄 [VERIFICAÇÃO] Alternando para a aba {i + 1}...")
         pyautogui.moveTo(x_aba, y_aba, duration=0.5)
         pyautogui.click()
-        time.sleep(5)
+        time.sleep(5)  # Aguarda a aba carregar
 
-        if clicar_no_botao(button_claim_template, f"Botão CLAIM encontrado na aba {i+1}"):
+        if clicar_no_botao(button_claim_template, f"✔ Botão CLAIM encontrado na aba {i+1}"):
+            encontrou_claim = True
             processar_aba(x_janela, y_janela)
-            return True  
+            break  # Para a verificação, pois encontrou um Claim
 
-    return False  
+    if not encontrou_claim:
+        print("❌ Nenhum botão Claim encontrado em nenhuma aba. Retornando ao tempo de espera normal.")
+    
+    return encontrou_claim  # Retorna True se encontrou, False se não encontrou
+
 
 def processar_aba(x_janela, y_janela):
     """Executa a sequência de cliques para uma aba."""
@@ -243,21 +251,30 @@ while True:
     for i, (x_rel, y_rel) in enumerate(abas_relativas):
         x_aba = x_janela + x_rel
         y_aba = y_janela + y_rel
-        time.sleep(2)
-        print(f"Alternando para a aba {i + 1}...")
+        time.sleep(3)
+        print(f"[LOOP PRINCIPAL] Alternando para a aba {i + 1}...")
         pyautogui.moveTo(x_aba, y_aba, duration=0.5)
         pyautogui.click()
-        time.sleep(8)
+        time.sleep(5)
 
-        processar_aba(x_janela, y_janela)
+        processar_aba(x_janela, y_janela) 
 
     print(f"Aguardando {horas} horas e {minutos} minutos antes de repetir o processo...")
 
-    while time.time() - ultimo_teste < tempo_verificacao:
+    while time.time() - hora_atual < tempo_verificacao:
+        print("dentro do ultimo while")
+        print(f"hora_atual: {hora_atual}")
+        print("<")
+        print(f"tempo_verificacao: {tempo_verificacao}")
         time.sleep(300)
-
-        if time.time() - ultimo_teste >= tempo_verificacao:
+        print("time sleep 300")
+        if time.time() - hora_atual >= tempo_verificacao:
             if verificar_tempo_proximo():  # Impede execução se estiver perto do ciclo normal
-                print("🔄 [VERIFICAÇÃO] Checando todas as abas para ver se há um botão CLAIM disponível...")
-                if verificar_todas_abas(x_janela, y_janela):
-                    ultimo_teste = time.time()
+                print("[VERIFICAÇÃO] Checando todas as abas para ver se há um botão CLAIM disponível...")
+                encontrou_claim = verificar_todas_abas(x_janela, y_janela)
+
+                if encontrou_claim:
+                    hora_atual = time.time()  # Atualiza o timer se encontrou Claim
+                else:
+                    print("⏳ Nenhum botão Claim encontrado. Aguardando o próximo ciclo normal...")
+                    time.sleep(tempo_de_espera - tempo_verificacao)  # Espera o tempo restante correto
